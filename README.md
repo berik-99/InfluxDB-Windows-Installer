@@ -11,13 +11,30 @@ To get started with the InfluxDB Windows Installer:
 
 ## Build 🔧
 
+**Requirements**
+- [Inno Setup](https://jrsoftware.org/isinfo.php)
+- [PowerShell Core](https://github.com/PowerShell/PowerShell) ( >v7.4 )
+
 To compile the package yourself, follow these steps:
 
 1. Clone the repository:
-   \```
+   ```
    git clone https://github.com/berik-99/InfluxWindowsInstaller.git
    cd InfluxWindowsInstaller
-   \```
+   ```
+
+2. Run the `download_sources.ps1` script (with PowerShell Core):
+   ```
+   pwsh ./download_sources.ps1
+   ```
+
+3. Make sure you have [Inno Setup](https://jrsoftware.org/isinfo.php) installed on your machine.
+4. Open the Inno Setup script (`.iss`) file in Inno Setup and build the installer.
+5. The compiled installer will be available in the output folder specified in the script.
+   ```
+   git clone https://github.com/berik-99/InfluxWindowsInstaller.git
+   cd InfluxWindowsInstaller
+   ```
 
 2. Make sure you have [Inno Setup](https://jrsoftware.org/isinfo.php) installed on your machine.
 3. Open the Inno Setup script (`.iss`) file in Inno Setup and build the installer.
@@ -25,7 +42,7 @@ To compile the package yourself, follow these steps:
 
 ## Acknowledgments 🙏
 
-- A big thank you to [Shawl](https://github.com/shawlnet/Shawl) and [Inno Setup](https://jrsoftware.org/isinfo.php) for providing amazing tools that made this project possible! 
+- A big thank you to [Shawl](https://github.com/mtkennerly/shawl) and [Inno Setup](https://jrsoftware.org/isinfo.php) for providing amazing tools that made this project possible! 
 
 ## License 📄
 
