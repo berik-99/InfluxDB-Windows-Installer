@@ -17,9 +17,9 @@ New-Item -ItemType Directory -Path $influxDbDir
 New-Item -ItemType Directory -Path $shawlDir
 
 # Download URLs
-$influxDbUrl = "https://dl.influxdata.com/influxdb/releases/influxdb2-2.7.10-windows.zip"  # Change to the latest version
-$shawlReleaseUrl = "https://github.com/mtkennerly/shawl/releases/download/v1.5.1/shawl-v1.5.1-win64.zip"  # Change to the correct URL
-$shawlSourceUrl = "https://github.com/mtkennerly/shawl/archive/refs/tags/v1.5.1.zip"  # Change to the correct URL if needed
+$influxDbUrl = "https://dl.influxdata.com/influxdb/releases/influxdb2-2.7.10-windows.zip"
+$shawlReleaseUrl = "https://github.com/mtkennerly/shawl/releases/download/v1.5.1/shawl-v1.5.1-win64.zip"
+$shawlSourceUrl = "https://github.com/mtkennerly/shawl/archive/refs/tags/v1.5.1.zip"
 
 # Define file paths
 $influxDbZip = "$influxDbDir\influxdb.zip"
@@ -27,27 +27,47 @@ $shawlReleaseZip = "$shawlDir\shawl_release.zip"
 $shawlSourceZip = "$shawlDir\shawl_source.zip"
 
 # Function to download files with progress
-function Download-WithProgress {
+function Get-FileWithProgress {
     param (
         [string]$url,
         [string]$outputPath
     )
 
+    # Initialize the WebClient
     $webClient = New-Object System.Net.WebClient
+
+    # Define the event handler for progress
+    $ProgressChanged = {
+        param ($sender, $e)
+        Write-Progress -Activity "Downloading $url" -Status "$($e.ProgressPercentage)% Complete" -PercentComplete $e.ProgressPercentage
+    }
+
+    # Attach the event handler
+    $webClient.DownloadProgressChanged.Add($ProgressChanged)
 
     # Start the download
     Write-Host "Downloading $url..."
-    $webClient.DownloadFile($url, $outputPath)
+    $webClient.DownloadFileAsync([Uri]$url, $outputPath)
+
+    # Wait for download to complete
+    while ($webClient.IsBusy) {
+        Start-Sleep -Milliseconds 100
+    }
+
+    # Clean up the event handler and dispose of the WebClient
+    $webClient.DownloadProgressChanged.Remove($ProgressChanged)
+    $webClient.Dispose()
+    Write-Progress -Activity "Download" -Completed
 }
 
 # Start download jobs with progress reporting
-Download-WithProgress -url $influxDbUrl -outputPath $influxDbZip
+Get-FileWithProgress -url $influxDbUrl -outputPath $influxDbZip
 Write-Host "InfluxDB download complete."
 
-Download-WithProgress -url $shawlReleaseUrl -outputPath $shawlReleaseZip
+Get-FileWithProgress -url $shawlReleaseUrl -outputPath $shawlReleaseZip
 Write-Host "Shawl release download complete."
 
-Download-WithProgress -url $shawlSourceUrl -outputPath $shawlSourceZip
+Get-FileWithProgress -url $shawlSourceUrl -outputPath $shawlSourceZip
 Write-Host "Shawl source code download complete."
 
 # Extract InfluxDB
@@ -60,7 +80,7 @@ Expand-Archive -Path $shawlReleaseZip -DestinationPath $shawlDir
 Expand-Archive -Path $shawlSourceZip -DestinationPath $shawlDir
 
 # Move the LICENSE file to the Shawl_bin directory and rename it to LICENSE2
-$licenseFile = "$shawlDir\shawl-1.5.1\LICENSE"  # Adjust according to the extracted folder structure
+$licenseFile = "$shawlDir\shawl-1.5.1\LICENSE"
 if (Test-Path $licenseFile) {
     Rename-Item -Path $licenseFile -NewName "LICENSE2"
     Move-Item -Path "$shawlDir\shawl-1.5.1\LICENSE2" -Destination $shawlDir
