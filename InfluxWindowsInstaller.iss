@@ -55,41 +55,20 @@ var
   License2NotAcceptedRadio: TRadioButton;
   ErrorCode: Integer;
   IsUpdating: Boolean;
-  IsRepairing: Boolean;
-  
-procedure UpdatePageTextsForRepair();
-begin
-  if IsRepairing then
-  begin
-    // Modify welcome page texts
-    WizardForm.WelcomeLabel1.Caption := 'Riparazione di {#AppTitle}';
-    WizardForm.WelcomeLabel2.Caption := 'L installazione rileva che questa versione è già presente. Proseguirà in modalità riparazione.';
-
-    // Customize other page titles and descriptions
-    WizardForm.PageTitles[wpSelectDir] := 'Seleziona la cartella di riparazione';
-    WizardForm.PageDescriptions[wpSelectDir] := 'Seleziona la cartella in cui è già installato {#AppTitle} per continuare con la riparazione.';
-
-    WizardForm.PageTitles[wpSelectProgramGroup] := 'Configura gruppo di programmi per riparazione';
-    WizardForm.PageDescriptions[wpSelectProgramGroup] := 'Scegli il gruppo di programmi in cui verranno aggiornati i collegamenti per {#AppTitle}.';
-
-    WizardForm.PageTitles[wpReady] := 'Pronto per la riparazione';
-    WizardForm.PageDescriptions[wpReady] := 'Il programma è pronto per riparare {#AppTitle}. Fai clic su Avanti per continuare.';
-  end;
-end;  
   
 function InitializeSetup: Boolean;
 var 
   Version: String;
 begin
   IsUpdating := False;
-  IsRepairing := False;
   Result := True;
   if RegValueExists(HKEY_LOCAL_MACHINE,'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1', 'DisplayVersion') then
   begin
     RegQueryStringValue(HKEY_LOCAL_MACHINE,'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1', 'DisplayVersion', Version);
     if Version = '{#AppVer}' then
     begin
-      IsRepairing := True;
+      if MsgBox(ExpandConstant('Tne same version of {#AppTitle} v{#AppVer} is already installed. Press ok to perform a repair installation or cancel to abort.'), mbInformation, MB_OKCANCEL) = IDCANCEL then
+        Result := False;
     end
     else if Version > '{#AppVer}' then
     begin
@@ -149,7 +128,6 @@ end;
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := ((PageID = wpSelectTasks) or (PageID = wpReady))and IsUpdating;
-  Log('coa')
 end;
 
 procedure ServiceRegistration();
