@@ -27,7 +27,7 @@ $shawlReleaseZip = "$shawlDir\shawl_release.zip"
 $shawlSourceZip = "$shawlDir\shawl_source.zip"
 
 # Function to download files with progress
-function Download-WithProgress {
+function Get-FileWithProgress {
     param (
         [string]$url,
         [string]$outputPath
