@@ -1,7 +1,7 @@
+#define AppId "225E5AB3-F87B-4C34-A34E-9F655DF12C4E"
 #define ServiceName "InfluxDBService"
 #define AppTitle "InfluxDB OSS"
 #define AppVer "2.7.10"
-#define DefaultDir "InfluxDB"
 #define SourceInfluxDir ".\InfluxDB_bin"
 #define SourceShawlDir ".\Shawl_bin"
 #define OutputFolder ".\dist"
@@ -10,13 +10,14 @@
 #define OutputInfluxExecutable "{app}\influxd.exe"
 
 [Setup]
+AppId={#AppId}
 AppName={#AppTitle}
 AppVersion={#AppVer}
-DefaultDirName={autopf}\{#DefaultDir}
+DefaultDirName={autopf}\{#AppTitle}
 DefaultGroupName={#AppTitle}
 UninstallDisplayIcon=.\Assets\influxdb.ico
 OutputDir={#OutputFolder}
-OutputBaseFilename={#AppTitle}_Installer
+OutputBaseFilename={#AppTitle}-{#AppVer}-setup
 Compression=lzma
 WizardStyle=modern
 SolidCompression=yes
@@ -29,23 +30,57 @@ WizardImageFile=.\Assets\influxdb_large.bmp
 WizardSmallImageFile=.\Assets\influxdb_small.bmp
 
 [Files]
-Source: "{#SourceInfluxDir}\*"; DestDir: "{app}\"; Flags: ignoreversion
-Source: "{#SourceShawlDir}\*"; DestDir: "{app}\Shawl\"; Flags: ignoreversion
-Source: "{#SourceShawlDir}\{#OutputShawlLicense}"; DestDir: "{app}\Shawl\"; Flags: ignoreversion
+Source: "{#SourceInfluxDir}\*"; DestDir: "{app}\"; 
+Source: "{#SourceShawlDir}\*"; DestDir: "{app}\Shawl\"; 
+Source: "{#SourceShawlDir}\{#OutputShawlLicense}"; DestDir: "{app}\Shawl\"; 
+
+[Tasks]
+Name: "service_auto"; Description: "Register the service in automatic startup"; GroupDescription: "Service Configuration:"; Flags: exclusive
+Name: "service_manual"; Description: "Register the service in manual startup"; GroupDescription: "Service Configuration:"; Flags: unchecked exclusive
+Name: "service_start"; Description: "Start the service immediately"; GroupDescription: "Service Startup:"; 
 
 [Run]
-Filename: "{#OutputShawlExecutable}"; Parameters: "add --name {#ServiceName} -- ""{#OutputInfluxExecutable}"""; WorkingDir: "{app}"; StatusMsg: "Registering {#ServiceName} service..."; Check: ServiceRegistrationCheck; Flags: shellexec runhidden waituntilterminated
+Filename: "{#OutputShawlExecutable}"; Parameters: "add --name {#ServiceName} -- ""{#OutputInfluxExecutable}"""; WorkingDir: "{app}"; StatusMsg: "Registering {#ServiceName} service..."; AfterInstall: ServiceRegistration; Flags: shellexec runhidden waituntilterminated
 
 [UninstallRun]
 Filename: "sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden; RunOnceId: "Remove{#ServiceName}"
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
 
 [Code]
 var
   SecondLicensePage: TOutputMsgMemoWizardPage;
   License2AcceptedRadio: TRadioButton;
   License2NotAcceptedRadio: TRadioButton;
-  StartServicePage: TInputOptionWizardPage;
   ErrorCode: Integer;
+  IsUpdating: Boolean;
+  
+function InitializeSetup: Boolean;
+var 
+  Version: String;
+begin
+  IsUpdating := False;
+  Result := True;
+  if RegValueExists(HKEY_LOCAL_MACHINE,'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1', 'DisplayVersion') then
+  begin
+    RegQueryStringValue(HKEY_LOCAL_MACHINE,'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1', 'DisplayVersion', Version);
+    if Version = '{#AppVer}' then
+    begin
+      if MsgBox(ExpandConstant('Tne same version of {#AppTitle} v{#AppVer} is already installed. Press ok to perform a repair installation or cancel to abort.'), mbInformation, MB_OKCANCEL) = IDCANCEL then
+        Result := False;
+    end
+    else if Version > '{#AppVer}' then
+    begin
+      MsgBox(ExpandConstant('A newer version of {#AppTitle} is already installed. Installer version: {#AppVer}. Current version: ' + Version + '.'), mbInformation, MB_OK);
+      Result := False;
+    end
+    else
+    begin
+      IsUpdating := True;
+    end;
+  end;
+end;
 
 procedure CheckLicense2Accepted(Sender: TObject);
 begin
@@ -82,60 +117,59 @@ begin
   License2AcceptedRadio := CloneLicenseRadioButton(WizardForm.LicenseAcceptedRadio);
   License2NotAcceptedRadio := CloneLicenseRadioButton(WizardForm.LicenseNotAcceptedRadio);
   License2NotAcceptedRadio.Checked := True;
-
-  StartServicePage := CreateInputOptionPage(
-    wpSelectTasks,
-    'Service Startup',
-    'How do you want to register the InfluxDB service?',
-    'Check the boxes to select the ways you want to start the service.',
-    False,
-    False
-  );
-
-  StartServicePage.AddEx('Manual', 0, True);
-  StartServicePage.AddEx('Automatic (delayed stard)', 0, True);
-  StartServicePage.Add('Start the service immediately');
-  StartServicePage.Values[1] := True;
-  StartServicePage.Values[2] := True;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = SecondLicensePage.ID then
-  begin
     CheckLicense2Accepted(nil);
-  end;
 end;
 
-function ServiceRegistrationCheck: Boolean;
+function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  try
-    Result := True;
-    if StartServicePage.Values[1] then
+  Result := ((PageID = wpSelectTasks) or (PageID = wpReady))and IsUpdating;
+end;
+
+procedure ServiceRegistration();
+var
+  CanContinue: Boolean;
+begin
+  CanContinue := not IsUpdating;
+  if CanContinue then
+  begin 
+    if WizardIsTaskSelected('service_auto') then
     begin
       if not ShellExec('', 'sc.exe', 'config {#ServiceName} start= delayed-auto', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
       begin
-        MsgBox('Error: Unable to register the service in automatic (delayed stard) mode. Please try from the Windows services manager.', mbError, MB_OK);
-        Result := False;
-      end;
+        MsgBox('Error: Unable to set the service to automatic (delayed start). Please try from the Windows services manager.', mbError, MB_OK);
+        CanContinue := False;
+      end
     end
-    else
+    else if WizardIsTaskSelected('service_manual') then
     begin
       if not ShellExec('', 'sc.exe', 'config {#ServiceName} start= demand', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
       begin
-        MsgBox('Error: Unable to register the service in manual mode. Please try from the Windows services manager.', mbError, MB_OK);
-        Result := False;
+        MsgBox('Error: Unable to set the service to manual. Please try from the Windows services manager.', mbError, MB_OK);
+        CanContinue := False;
       end;
     end;
 
-    if StartServicePage.Values[2] and Result then
+    if WizardIsTaskSelected('service_start') and CanContinue then
+    begin
       if not ShellExec('', 'sc.exe', 'start {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
       begin
         MsgBox('Error: Unable to start the service. Please try from the Windows services manager.', mbError, MB_OK);
-        Result := False;
+        CanContinue := False;
       end;
-  except
-      MsgBox('Error: An error occurred while registering the service.', mbError, MB_OK);
-      Result := False;
+    end;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    if not ShellExec('', 'sc.exe', 'stop {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
+      MsgBox('Error: Unable to stop the service. Please try from the Windows services manager.', mbError, MB_OK);
   end;
 end;

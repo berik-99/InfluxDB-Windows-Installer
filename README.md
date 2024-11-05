@@ -1,4 +1,5 @@
 # InfluxDB Windows Installer 🚀
+InfluxDB Windows Installer is a Windows installer created with Inno Setup that installs and registers InfluxDB OSS V2 as a Windows service, using Shawl as a wrapper for simplified management.
 
 **Disclaimer:** This software is not affiliated in any way with the producers of InfluxDB. It is a third-party tool designed to simplify the installation of InfluxDB. All logos, texts, and programs used are the property of InfluxDB and were taken and possibly modified from the official repository [here](https://github.com/influxdata/influxdb), which is licensed under MIT.
 
