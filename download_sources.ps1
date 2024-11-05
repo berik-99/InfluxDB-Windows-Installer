@@ -41,13 +41,13 @@ function Get-FileWithProgress {
 }
 
 # Start download jobs with progress reporting
-Download-WithProgress -url $influxDbUrl -outputPath $influxDbZip
+Get-FileWithProgress -url $influxDbUrl -outputPath $influxDbZip
 Write-Host "InfluxDB download complete."
 
-Download-WithProgress -url $shawlReleaseUrl -outputPath $shawlReleaseZip
+Get-FileWithProgress -url $shawlReleaseUrl -outputPath $shawlReleaseZip
 Write-Host "Shawl release download complete."
 
-Download-WithProgress -url $shawlSourceUrl -outputPath $shawlSourceZip
+Get-FileWithProgress -url $shawlSourceUrl -outputPath $shawlSourceZip
 Write-Host "Shawl source code download complete."
 
 # Extract InfluxDB
